@@ -26,10 +26,10 @@ inline double endday(int d) {
 
 inline void updateCE(int x) {
   double sum = 0;
-  for (int c = 50; c < I; ++c) {
+  for (int c = 0; c < I; ++c) {
     sum += (CE[c] *= DP[c][x]);
   }
-  for (int c = 50; c < I; ++c) {
+  for (int c = 0; c < I; ++c) {
     CE[c] /= sum;
   }
 }
@@ -42,7 +42,8 @@ inline int V(int i) {
   double rd = ((100 + max(day, 10)) / 2.0 - day);
   for (int k = 0; k < 15; ++k) {
     double x = 0;
-    for (int y = 50; y < I; ++y) {
+    for (int y = 0; y < I; ++y) {
+      if (CE[y] < 1e-4) continue;
       double z = BE[i][k][y] - DE[i][k][y] * rd;
       for (int j = 0; j < k; ++j) {
         double a = 1;
@@ -75,19 +76,26 @@ class ProductInventory {
     for (int i = 0; i < n; ++i) {
       expires[i]++;
     }
+    double T[I];
+    memset(T, 0, sizeof(T));
     memset(S, 0, sizeof(S));
     memset(B, 0, sizeof(B));
     memset(DP, 0, sizeof(DP));
+    memset(CE, 0, sizeof(CE));
+    memset(BE, 0, sizeof(BE));
+    memset(DE, 0, sizeof(DE));
     DP[0][0] = 1;
     for (int i = 0; i + 1 < W; ++i) {
-      for (int j = 0; j + 1 < P; ++j) {
-        DP[i + 1][j + 1] += DP[i][j] * Q;
-        DP[i + 1][j + 0] += DP[i][j] * (1 - Q);
+      for (int j = 0; j < P; ++j) {
+        if (j + 1 < P) {
+          DP[i + 1][j + 1] += DP[i][j] * Q;
+          DP[i + 1][j + 0] += DP[i][j] * (1 - Q);
+        } else {
+          DP[i + 1][j + 0] += DP[i][j];
+        }
       }
     }
-    double T[I];
     for (int p = 1; p < I; ++p) {
-      T[p] = 0;
       for (int i = 0; i < n; ++i) {
         int b = buy[i];
         int s = sell[i];
@@ -101,16 +109,14 @@ class ProductInventory {
       }
     }
     for (int c = 50; c < I; ++c) {
-      CE[c] = 1.0 / (I - 51);
+      CE[c] = 1;
     }
     for (int i = 0; i < n; ++i) {
       for (int j = 0; j < I; ++j) {
         for (int k = 0; k < I; ++k) {
-          BE[i][j][k] = 0;
-          DE[i][j][k] = 0;
           for (int p = 0; p <= k; ++p) {
-            BE[i][j][k] += (sell[i] - buy[i]) * min(j, p) * DP[k][p];
-            DE[i][j][k] += T[k] * Q * max(p - j, 0) * DP[k][p];
+            BE[i][j][k] += DP[k][p] * (sell[i] - buy[i]) * min(j, p);
+            DE[i][j][k] += DP[k][p] * T[k] * Q * max(p - j, 0);
           }
         }
       }
@@ -127,12 +133,11 @@ class ProductInventory {
           s += yesterday[i];
           c++;
         }
-        for (int d = day, y = yesterday[i]; d < I && y > 0;) {
+        for (int d = day, y = yesterday[i]; d < I && y > 0; ++d) {
           if (B[i][d]) {
-            B[i][d]--;
-            y--;
-          } else {
-            d++;
+            int t = min(B[i][d], y);
+            B[i][d] -= t;
+            y -= t;
           }
         }
         S[i] -= yesterday[i] + B[i][day];
